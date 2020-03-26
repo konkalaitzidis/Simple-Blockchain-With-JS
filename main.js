@@ -64,15 +64,15 @@ class Blockchain{
 
 }
 
-let savjeeCoin = new Blockchain();
+let kostasCoin = new Blockchain();
 
 console.log("Mining Block 1....");
-savjeeCoin.addBlock(new Block(1, "10/07/2020", { amount: 4 }));
+kostasCoin.addBlock(new Block(1, "10/07/2020", { amount: 4 }));
 
 console.log("Mining Block 2....");
-savjeeCoin.addBlock(new Block(2, "12/07/2020", { amount: 10 }));
+kostasCoin.addBlock(new Block(2, "12/07/2020", { amount: 10 }));
 
 
 
 
-//console.log(JSON.stringify(savjeeCoin, null, 4));
+//console.log(JSON.stringify(kostasCoin, null, 4));
