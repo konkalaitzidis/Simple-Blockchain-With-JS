@@ -1,11 +1,37 @@
 const SHA256 = require('crypto-js/sha256')
-
+const EC = require('elliptic').ec;
+const ec = new EC('secp256k1');
 
 class Transaction{
     constructor(fromAdress, toAdress, amount){
         this.fromAdress = fromAdress;
         this.toAdress = toAdress;
         this.amount = amount;
+    }
+
+    calculateHash(){
+        return SHA256(this.fromAdress + this.toAdress + this.amount).toString();
+    }
+
+    signTransaction(signingKey){
+        if(signingKey.getPublic('hex') !== this.fromAdress){
+            throw new Error('You cannot sign transaction for other wallets!');
+        }
+        
+        const hashTx = this.calculateHash();
+        const sig = signingKey.sign(hashTx, 'base64');
+        this.signature = sig.toDER('hex'); 
+    }
+
+    isValid(){
+        if(this.fromAdress === null) return true; 
+
+        if(!this.signature || this.signature.length === 0){
+            throw new Error('No signature in this transaction');
+        }
+
+        const publicKey = ec.keyFromPublic(this.fromAdress, 'hex');
+        return publicKey.verify(this.calculateHash(), this.signature);
     }
 }
 class Block {
@@ -28,6 +54,16 @@ class Block {
         }
 
         console.log("Block mined: " + this.hash);
+    }
+
+    hasValidTransaction(){
+        for(const tx of this.transactions){
+            if(!tx.isValid()){
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 
@@ -60,9 +96,20 @@ class Blockchain{
         ];
     }
 
-    createTransaction(transaction){
+// this method adds new transactions to our blockchain
+
+    addTransaction(transaction){
+
+        if(!transaction.fromAdress || !transaction.toAdress){
+            throw new Error('Transaction must inlcude from and to address');
+        }
+
+        if(!transaction.isValid){
+            throw new Error('Cannot add invalid transaction to chain');
+        }
+
         this.pendingTransactions.push(transaction);
-    }
+    } 
 
     getBalanceOfAddress(address){
         let balance = 0;
@@ -81,10 +128,16 @@ class Blockchain{
         return balance;
     }
 
+// this method goes through all of the blocks in our chain and verifies that the hashes are correct and that each blocks links to the previous block
+  
     isChainValid(){ //we don't start with the first block (0) because that is the genesis block
         for(let i=1; i<this.chain.length; i++){
             const currentBlock = this.chain[i];
             const previousBlock = this.chain[i-1];
+
+            if(!currentBlock.hasValidTransactions()){
+                return false;
+            }
 
             if(currentBlock.hash !== currentBlock.calculateHash()){
                 return false;
@@ -100,23 +153,5 @@ class Blockchain{
 
 }
 
-let kostasCoin = new Blockchain();
-
-kostasCoin.createTransaction(new Transaction('address 1', 'address 2', 100));
-kostasCoin.createTransaction(new Transaction('address 2', 'address 1', 50));
-
-console.log('\n Starting the miner....');
-kostasCoin.minePendingTransactions('konstantina-address');
-
-console.log('\nBalance of Konstantina is', kostasCoin.getBalanceOfAddress('konstantina-address'));
-
-console.log('\n Starting the miner....');
-kostasCoin.minePendingTransactions('konstantina-address');
-
-console.log('\nBalance of Konstantina is', kostasCoin.getBalanceOfAddress('konstantina-address'));
-
-
-
-
-
-//console.log(JSON.stringify(kostasCoin, null, 4));
+module.exports.Blockchain = Blockchain;
+module.exports.Transaction = Transaction;
